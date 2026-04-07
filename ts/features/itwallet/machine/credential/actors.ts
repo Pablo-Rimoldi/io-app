@@ -5,6 +5,7 @@ import { useIOStore } from "../../../../store/hooks";
 import { sessionTokenSelector } from "../../../authentication/common/store/selectors";
 import { assert } from "../../../../utils/assert";
 import * as itwAttestationUtils from "../../common/utils/itwAttestationUtils";
+import { shouldBypassStrongIntegrityCheck } from "../../common/utils/itwIntegrityUtils";
 import * as credentialIssuanceUtils from "../../common/utils/itwCredentialIssuanceUtils";
 import { getCredentialStatusAssertion } from "../../common/utils/itwCredentialStatusAssertionUtils";
 import {
@@ -31,6 +32,9 @@ import { type Context } from "./context";
 export type GetWalletAttestationActorOutput = Awaited<
   ReturnType<typeof itwAttestationUtils.getAttestation>
 >;
+export type GetWalletAttestationActorInput = Partial<{
+  credentialType: string;
+}>;
 
 export type RequestCredentialActorInput =
   Partial<credentialIssuanceUtils.RequestCredentialParams> & {
@@ -88,10 +92,13 @@ export const createCredentialIssuanceActorsImplementation = (
     );
   });
 
-  const getWalletAttestation = fromPromise<GetWalletAttestationActorOutput>(
-    async () => {
+  const getWalletAttestation = fromPromise<
+    GetWalletAttestationActorOutput,
+    GetWalletAttestationActorInput
+  >(async () => {
       const sessionToken = sessionTokenSelector(store.getState());
       const integrityKeyTag = itwIntegrityKeyTagSelector(store.getState());
+      const bypassStrongIntegrityCheck = shouldBypassStrongIntegrityCheck();
 
       assert(sessionToken, "sessionToken is undefined");
       assert(O.isSome(integrityKeyTag), "integriyKeyTag is not present");
@@ -101,7 +108,8 @@ export const createCredentialIssuanceActorsImplementation = (
           env,
           itwVersion,
           integrityKeyTag.value,
-          sessionToken
+          sessionToken,
+          { bypassStrongIntegrityCheck }
         );
       } catch (firstError) {
         // On iOS, the stored DCAppAttest key can become invalid (DCErrorInvalidKey,
@@ -128,11 +136,13 @@ export const createCredentialIssuanceActorsImplementation = (
           itwVersion,
           newHardwareKeyTag,
           sessionToken,
-          { isRenewal: true }
+          { isRenewal: true, bypassStrongIntegrityCheck }
         );
 
         return await itwAttestationUtils
-          .getAttestation(env, itwVersion, newHardwareKeyTag, sessionToken)
+          .getAttestation(env, itwVersion, newHardwareKeyTag, sessionToken, {
+            bypassStrongIntegrityCheck
+          })
           .then(attestation => {
             // Track the successful renewal in Mixpanel
             trackWalletInstanceRenewalSuccess();
@@ -147,8 +157,7 @@ export const createCredentialIssuanceActorsImplementation = (
             throw error;
           });
       }
-    }
-  );
+    });
 
   const requestCredential = fromPromise<
     RequestCredentialActorOutput,

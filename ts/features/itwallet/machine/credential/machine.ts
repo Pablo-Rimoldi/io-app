@@ -195,6 +195,9 @@ export const itwCredentialIssuanceMachine = setup({
       tags: [ItwTags.Loading],
       invoke: {
         src: "getWalletAttestation",
+        input: ({ context }) => ({
+          credentialType: context.credentialType
+        }),
         onDone: {
           target: "RequestingCredential",
           actions: [

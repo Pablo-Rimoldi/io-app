@@ -17,6 +17,7 @@ import {
   getIntegrityHardwareKeyTag,
   registerWalletInstance
 } from "../../common/utils/itwAttestationUtils";
+import { shouldBypassStrongIntegrityCheck } from "../../common/utils/itwIntegrityUtils";
 import { isAssertionGenerationError } from "../../common/utils/itwFailureUtils";
 import * as issuanceUtils from "../../common/utils/itwIssuanceUtils";
 import { revokeCurrentWalletInstance } from "../../common/utils/itwRevocationUtils";
@@ -85,7 +86,10 @@ export const createEidIssuanceActorsImplementation = (
   env: Env,
   itwVersion: ItwVersion,
   store: ReturnType<typeof useIOStore>
-) => ({
+) => {
+  const bypassStrongIntegrityCheck = shouldBypassStrongIntegrityCheck();
+
+  return {
   getCieStatus: fromPromise<CieContext>(async () => {
     const [isNFCEnabled, isCIEAuthenticationSupported] = await Promise.all([
       cieUtils.isNfcEnabled(),
@@ -146,7 +150,9 @@ export const createEidIssuanceActorsImplementation = (
       `Integrity service status is ${integrityServiceStatus}`
     );
     const hardwareKeyTag = await getIntegrityHardwareKeyTag();
-    await registerWalletInstance(env, itwVersion, hardwareKeyTag, sessionToken);
+    await registerWalletInstance(env, itwVersion, hardwareKeyTag, sessionToken, {
+      bypassStrongIntegrityCheck
+    });
 
     return hardwareKeyTag;
   }),
@@ -164,7 +170,8 @@ export const createEidIssuanceActorsImplementation = (
         env,
         itwVersion,
         input.integrityKeyTag,
-        sessionToken
+        sessionToken,
+        { bypassStrongIntegrityCheck }
       );
     } catch (firstError) {
       // On iOS, the stored DCAppAttest key can become invalid (DCErrorInvalidKey,
@@ -190,14 +197,15 @@ export const createEidIssuanceActorsImplementation = (
         itwVersion,
         newHardwareKeyTag,
         sessionToken,
-        { isRenewal: true }
+        { isRenewal: true, bypassStrongIntegrityCheck }
       );
 
       return await getAttestation(
         env,
         itwVersion,
         newHardwareKeyTag,
-        sessionToken
+        sessionToken,
+        { bypassStrongIntegrityCheck }
       )
         .then(attestation => {
           // Track the successful renewal in Mixpanel
@@ -338,4 +346,5 @@ export const createEidIssuanceActorsImplementation = (
     actors: createCredentialUpgradeActorsImplementation(env, itwVersion),
     actions: createCredentialUpgradeActionsImplementation(store)
   })
-});
+  };
+};

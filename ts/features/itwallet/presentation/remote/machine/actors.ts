@@ -15,6 +15,7 @@ import {
 } from "../../../common/utils/itwTypesUtils";
 import { Env } from "../../../common/utils/environment";
 import { getAttestation } from "../../../common/utils/itwAttestationUtils";
+import { shouldBypassStrongIntegrityCheck } from "../../../common/utils/itwIntegrityUtils";
 import { useIOStore } from "../../../../../store/hooks";
 import {
   enrichPresentationDetails,
@@ -71,6 +72,7 @@ export const createRemoteActorsImplementation = (
   itwVersion: ItwVersion,
   store: ReturnType<typeof useIOStore>
 ) => {
+  const bypassStrongIntegrityCheck = shouldBypassStrongIntegrityCheck();
   const evaluateRelyingPartyTrust = fromPromise<
     EvaluateRelyingPartyTrustOutput,
     EvaluateRelyingPartyTrustInput
@@ -260,7 +262,9 @@ export const createRemoteActorsImplementation = (
       assert(sessionToken, "sessionToken is undefined");
       assert(integrityKeyTag, "integrityKeyTag is undefined");
 
-      return getAttestation(env, itwVersion, integrityKeyTag, sessionToken);
+      return getAttestation(env, itwVersion, integrityKeyTag, sessionToken, {
+        bypassStrongIntegrityCheck
+      });
     }
   );
 

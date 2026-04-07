@@ -13,6 +13,10 @@ import { WalletInstanceAttestations } from "./itwTypesUtils.ts";
 import { Env } from "./environment.ts";
 import { getIoWallet } from "./itwIoWallet.ts";
 
+type AttestationOptions = {
+  bypassStrongIntegrityCheck?: boolean;
+};
+
 /**
  * Getter for the integrity hardware keytag to be used for an {@link IntegrityContext}.
  * @return the integrity hardware keytag to be persisted
@@ -33,10 +37,10 @@ export const registerWalletInstance = async (
   itwVersion: ItwVersion,
   hardwareKeyTag: string,
   sessionToken: string,
-  options?: { isRenewal?: boolean }
+  options?: { isRenewal?: boolean } & AttestationOptions
 ) => {
   const ioWallet = getIoWallet(itwVersion);
-  const integrityContext = getIntegrityContext(hardwareKeyTag);
+  const integrityContext = getIntegrityContext(hardwareKeyTag, options);
   // This must be used only for API calls mediated through our backend which are related to the wallet instance only
   const appFetch = createItWalletFetch(
     sessionToken,
@@ -63,10 +67,11 @@ export const getAttestation = async (
   { WALLET_PROVIDER_BASE_URL }: Env,
   itwVersion: ItwVersion,
   hardwareKeyTag: string,
-  sessionToken: string
+  sessionToken: string,
+  options?: AttestationOptions
 ): Promise<WalletInstanceAttestations> => {
   const ioWallet = getIoWallet(itwVersion);
-  const integrityContext = getIntegrityContext(hardwareKeyTag);
+  const integrityContext = getIntegrityContext(hardwareKeyTag, options);
 
   await regenerateCryptoKey(WIA_KEYTAG);
   const wiaCryptoContext = createCryptoContextFor(WIA_KEYTAG);

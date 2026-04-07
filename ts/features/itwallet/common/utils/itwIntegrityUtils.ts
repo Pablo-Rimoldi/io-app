@@ -25,6 +25,16 @@ export type HardwareSignatureWithAuthData = {
   authenticatorData: string;
 };
 
+type IntegrityContextOptions = {
+  /**
+   * Temporary development-only bypass used to unblock mDL internal testing on
+   * custom ROMs that cannot satisfy Strong Integrity.
+   */
+  bypassStrongIntegrityCheck?: boolean;
+};
+
+export const shouldBypassStrongIntegrityCheck = () => __DEV__;
+
 /**
  * Generates the hardware signature with the authentication data. The implementation differs between iOS and Android.
  * This will later be used to verify the signature on the server side.
@@ -33,7 +43,8 @@ export type HardwareSignatureWithAuthData = {
  */
 const getHardwareSignatureWithAuthData = (
   hardwareKeyTag: string,
-  clientData: string
+  clientData: string,
+  options?: IntegrityContextOptions
 ): Promise<HardwareSignatureWithAuthData> =>
   Platform.select({
     ios: async () => {
@@ -46,6 +57,11 @@ const getHardwareSignatureWithAuthData = (
     },
     android: async () => {
       const signature = await sign(clientData, hardwareKeyTag);
+      if (shouldBypassStrongIntegrityCheck() && options?.bypassStrongIntegrityCheck) {
+        // Keep hardware signing intact but bypass Play Integrity verdict checks in
+        // this temporary dev-only branch.
+        return { signature, authenticatorData: "dev-mdl-strong-integrity-bypass" };
+      }
       const clientDataHash = sha("sha256").update(clientData).digest("hex");
       const authenticatorData = await requestIntegrityToken(clientDataHash);
       return { signature, authenticatorData };
@@ -78,6 +94,9 @@ const ensureIntegrityServiceIsReady = ({ GOOGLE_CLOUD_PROJECT_NUMBER }: Env) =>
   Platform.select({
     ios: async () => await isAttestationServiceAvailable(),
     android: async () => {
+      if (shouldBypassStrongIntegrityCheck()) {
+        return true;
+      }
       const res = await isPlayServicesAvailable();
       if (!res) {
         return false;
@@ -98,11 +117,14 @@ const getAttestation = (challenge: string, hardwareKeyTag: string) =>
     default: () => Promise.reject(new Error("Unsupported platform"))
   })();
 
-const getIntegrityContext = (hardwareKeyTag: string): IntegrityContext => ({
+const getIntegrityContext = (
+  hardwareKeyTag: string,
+  options?: IntegrityContextOptions
+): IntegrityContext => ({
   getHardwareKeyTag: () => hardwareKeyTag,
   getAttestation: (nonce: string) => getAttestation(nonce, hardwareKeyTag),
   getHardwareSignatureWithAuthData: clientData =>
-    getHardwareSignatureWithAuthData(hardwareKeyTag, clientData)
+    getHardwareSignatureWithAuthData(hardwareKeyTag, clientData, options)
 });
 
 export {

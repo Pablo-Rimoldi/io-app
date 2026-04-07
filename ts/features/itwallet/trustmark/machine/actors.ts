@@ -5,6 +5,7 @@ import { useIOStore } from "../../../../store/hooks";
 import { sessionTokenSelector } from "../../../authentication/common/store/selectors";
 import { assert } from "../../../../utils/assert";
 import * as itwAttestationUtils from "../../common/utils/itwAttestationUtils";
+import { shouldBypassStrongIntegrityCheck } from "../../common/utils/itwIntegrityUtils";
 import { StoredCredential } from "../../common/utils/itwTypesUtils";
 import { itwIntegrityKeyTagSelector } from "../../issuance/store/selectors";
 import * as itwTrustmarkUtils from "../utils";
@@ -34,6 +35,7 @@ export const createItwTrustmarkActorsImplementation = (
   itwVersion: ItwVersion,
   store: ReturnType<typeof useIOStore>
 ) => {
+  const bypassStrongIntegrityCheck = shouldBypassStrongIntegrityCheck();
   /**
    * This actor gets the wallet instance attestation in case it's expired
    */
@@ -52,7 +54,8 @@ export const createItwTrustmarkActorsImplementation = (
         env,
         itwVersion,
         integrityKeyTag.value,
-        sessionToken
+        sessionToken,
+        { bypassStrongIntegrityCheck }
       );
     });
 
