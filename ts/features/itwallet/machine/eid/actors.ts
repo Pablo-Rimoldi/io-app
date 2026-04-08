@@ -88,6 +88,7 @@ export const createEidIssuanceActorsImplementation = (
   store: ReturnType<typeof useIOStore>
 ) => {
   const bypassStrongIntegrityCheck = shouldBypassStrongIntegrityCheck();
+  const shouldMockRegisterWalletInstance = true;
 
   return {
   getCieStatus: fromPromise<CieContext>(async () => {
@@ -150,9 +151,11 @@ export const createEidIssuanceActorsImplementation = (
       `Integrity service status is ${integrityServiceStatus}`
     );
     const hardwareKeyTag = await getIntegrityHardwareKeyTag();
-    await registerWalletInstance(env, itwVersion, hardwareKeyTag, sessionToken, {
-      bypassStrongIntegrityCheck
-    });
+    if (!shouldMockRegisterWalletInstance) {
+      await registerWalletInstance(env, itwVersion, hardwareKeyTag, sessionToken, {
+        bypassStrongIntegrityCheck
+      });
+    }
 
     return hardwareKeyTag;
   }),
@@ -192,13 +195,15 @@ export const createEidIssuanceActorsImplementation = (
       // and retrying the attestation with the new key tag.
       const newHardwareKeyTag = await getIntegrityHardwareKeyTag();
       store.dispatch(itwStoreIntegrityKeyTag(newHardwareKeyTag));
-      await registerWalletInstance(
-        env,
-        itwVersion,
-        newHardwareKeyTag,
-        sessionToken,
-        { isRenewal: true, bypassStrongIntegrityCheck }
-      );
+      if (!shouldMockRegisterWalletInstance) {
+        await registerWalletInstance(
+          env,
+          itwVersion,
+          newHardwareKeyTag,
+          sessionToken,
+          { isRenewal: true, bypassStrongIntegrityCheck }
+        );
+      }
 
       return await getAttestation(
         env,

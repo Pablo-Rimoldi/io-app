@@ -33,7 +33,11 @@ type IntegrityContextOptions = {
   bypassStrongIntegrityCheck?: boolean;
 };
 
-export const shouldBypassStrongIntegrityCheck = () => __DEV__;
+// TODO: REMOVE BEFORE COMMIT - temporary hardcoded bypass for internal testing builds.
+const TEMPORARY_HARDCODED_INTEGRITY_BYPASS = true;
+
+export const shouldBypassStrongIntegrityCheck = () =>
+  TEMPORARY_HARDCODED_INTEGRITY_BYPASS;
 
 /**
  * Generates the hardware signature with the authentication data. The implementation differs between iOS and Android.
